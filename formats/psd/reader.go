@@ -1,4 +1,4 @@
-package formats
+package psd
 
 import (
 	"github.com/mosen/psd"
