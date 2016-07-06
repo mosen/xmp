@@ -5,37 +5,15 @@ import (
 	"github.com/mosen/xmp"
 	"encoding/binary"
 	"strings"
-	"fmt"
 )
 
-const ITXT_HEADER_LENGTH = 22
+//const ITXT_HEADER_LENGTH = 22
 //const ITXT_HEADER_DATA_XMP = "XML:com.adobe.xmp\0\0\0\0\0"
 
+const ITXT_HEADER_LENGTH = 17
 const ITXT_HEADER_DATA_XMP = "XML:com.adobe.xmp"
 
-
 var PNG_MAGIC = []byte{137, 80, 78, 71, 13, 10, 26, 10}
-
-var CHUNK_TYPES = []string{
-	"IHDR",
-	"PLTE",
-	"IDAT",
-	"IEND",
-	"cHRM",
-	"gAMA",
-	"iCCP",
-	"sBIT",
-	"sRGB",
-	"bKGD",
-	"hIST",
-	"tRNS",
-	"pHYs",
-	"sPLT",
-	"tIME",
-	"iTXt",
-	"tEXt",
-	"zTXt",
-};
 
 type PNG struct {
 	chunks []Chunk
@@ -51,19 +29,19 @@ type Chunk struct {
 
 func DecodeChunk(r io.Reader) (*Chunk, error) {
 	var length uint32
-	binary.Read(r, binary.LittleEndian, &length)
+	binary.Read(r, binary.BigEndian, &length)
 
 	var chunkType []byte = make([]byte, 4)
-	binary.Read(r, binary.LittleEndian, chunkType)
+	binary.Read(r, binary.BigEndian, chunkType)
 
 	var chunkData []byte
 	if length > 0 {
 		chunkData = make([]byte, length)
-		binary.Read(r, binary.LittleEndian, chunkData)
+		binary.Read(r, binary.BigEndian, chunkData)
 	}
 
 	var crc uint32
-	binary.Read(r, binary.LittleEndian, &crc)
+	binary.Read(r, binary.BigEndian, &crc)
 
 	return &Chunk{
 		length,
@@ -75,7 +53,7 @@ func DecodeChunk(r io.Reader) (*Chunk, error) {
 
 func IsXMPChunk(chunk *Chunk) bool {
 	chunkType := string(chunk.chunkType)
-	fmt.Println(chunkType)
+	//fmt.Println(chunkType)
 
 	if chunkType != "iTXt" {
 		return false
@@ -90,7 +68,7 @@ func IsXMPChunk(chunk *Chunk) bool {
 
 func IsEndChunk(chunk *Chunk) bool {
 	chunkType := string(chunk.chunkType)
-	fmt.Println(chunkType)
+	//fmt.Println(chunkType)
 
 	return chunkType == "IEND"
 }
@@ -105,7 +83,7 @@ func DecodePNG(r io.Reader) (*PNG, error) {
 		return nil, err
 	}
 
-	fmt.Println("Magic %x\n", magic)
+	//fmt.Println("Magic %x\n", magic)
 
 	//if magic != PNG_MAGIC {
 	//	return nil, errors.New("this file does not seem to be a png file")
@@ -113,17 +91,17 @@ func DecodePNG(r io.Reader) (*PNG, error) {
 
 	PNG := &PNG{xmpString:""}
 
-	fmt.Println("Decoding chunks")
+	//fmt.Println("Decoding chunks")
 
 	for {
-		fmt.Println("Next chunk")
+		//fmt.Println("Next chunk")
 		chunk, err := DecodeChunk(r)
 		if err != nil {
 			return nil, err
 		}
 
-		fmt.Printf("Length: %d bytes\n", chunk.length)
-		fmt.Printf("Type: %s\n", chunk.chunkType)
+		//fmt.Printf("Length: %d bytes\n", chunk.length)
+		//fmt.Printf("Type: %s\n", chunk.chunkType)
 
 		if IsEndChunk(chunk) {
 			break
@@ -132,9 +110,7 @@ func DecodePNG(r io.Reader) (*PNG, error) {
 		PNG.chunks = append(PNG.chunks, *chunk)
 
 		if IsXMPChunk(chunk) {
-			PNG.xmpString = string(chunk.data)
-			fmt.Println(string(chunk.data))
-			break
+			PNG.xmpString = string(chunk.data)[ITXT_HEADER_LENGTH:]
 		}
 	}
 
@@ -143,13 +119,13 @@ func DecodePNG(r io.Reader) (*PNG, error) {
 
 // Dump xmp packet from iTXt chunk
 func DumpXMPString(r io.Reader) (string, error) {
-	_, err := DecodePNG(r)
+	png, err := DecodePNG(r)
 
 	if err != nil {
 		return "", err
 	}
 
-	return "", nil
+	return png.xmpString, nil
 }
 
 
