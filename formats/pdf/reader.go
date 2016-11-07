@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"strconv"
+	"bytes"
 )
 
 // getCrossReferenceTableOffset locates the xref offset value in the trailer.
@@ -75,9 +76,13 @@ func DumpXMPString(r io.Reader) (string, error) {
 	var xbuf []byte = make([]byte, xpacketLength)
 	rs.Read(xbuf)
 
-	fmt.Println(string(xbuf))
+	var beginOffset, endOffset int
+	beginOffset = bytes.Index(xbuf, []byte("<?xpacket begin"))
+	endOffset = bytes.Index(xbuf, []byte("<?xpacket end"))
 
-	return "", nil
+	var xmpPacket []byte = xbuf[beginOffset:endOffset]
+
+	return string(xmpPacket), nil
 }
 
 func init() {
