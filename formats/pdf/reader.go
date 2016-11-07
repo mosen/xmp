@@ -2,45 +2,26 @@ package pdf
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/mosen/xmp"
 	"io"
+	"strings"
 	"strconv"
 )
 
+// getCrossReferenceTableOffset locates the xref offset value in the trailer.
 func getCrossReferenceTableOffset(r io.Reader) (int, error) {
+	scanner := bufio.NewScanner(r)
 
-	xrefScanner := bufio.NewScanner(r)
-	// Split func "borrowed" from golang
-	xrefScanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-
-		if atEOF && len(data) == 0 {
-			return 0, nil, nil
-		}
-		if i := bytes.IndexByte(data, 0x0d); i >= 0 {
-			// We have a full newline-terminated line.
-			return i + 1, data[0:i], nil
-		}
-		// If we're at EOF, we have a final, non-terminated line. Return it.
-		if atEOF {
-			return len(data), data, nil
-		}
-		// Request more data.
-		return 0, nil, nil
-
-	})
-
-	for xrefScanner.Scan() {
-		if xrefScanner.Text() == "startxref" {
-			xrefScanner.Scan()
-			xrefOffset, err := strconv.Atoi(xrefScanner.Text())
+	for scanner.Scan() {
+		if xri := strings.Index(scanner.Text(), "startxref"); xri != -1 {
+			scanner.Scan()
+			xrefOffsetValue, err := strconv.Atoi(scanner.Text())
 			if err != nil {
-				return 0, err
+				return 0, fmt.Errorf("converting xref offset to integer: %s", err)
 			}
-
-			return xrefOffset, nil
+			return xrefOffsetValue, nil
 		}
 	}
 

@@ -8,7 +8,7 @@ import (
 )
 
 func TestDumpXMPString(t *testing.T) {
-	data, err := ioutil.ReadFile("../../bluesquare/BlueSquare.pdf")
+	data, err := ioutil.ReadFile("../../bluesquare/bar.pdf")
 	reader := bytes.NewReader(data)
 
 	if err != nil {
