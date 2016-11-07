@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/mosen/xmp"
+	"github.com/mosen/xmp/formats/pdf/xref"
 	"io"
 	"strings"
 	"strconv"
 )
 
 // getCrossReferenceTableOffset locates the xref offset value in the trailer.
-func getCrossReferenceTableOffset(r io.Reader) (int, error) {
+func getCrossReferenceTableOffset(r io.Reader) (int64, error) {
 	scanner := bufio.NewScanner(r)
 
 	for scanner.Scan() {
@@ -21,7 +22,7 @@ func getCrossReferenceTableOffset(r io.Reader) (int, error) {
 			if err != nil {
 				return 0, fmt.Errorf("converting xref offset to integer: %s", err)
 			}
-			return xrefOffsetValue, nil
+			return int64(xrefOffsetValue), nil
 		}
 	}
 
@@ -35,12 +36,36 @@ func DumpXMPString(r io.Reader) (string, error) {
 		return "", errors.New("Expected a seekable reader")
 	}
 
-	xref, err := getCrossReferenceTableOffset(rs)
+	xrefOffset, err := getCrossReferenceTableOffset(rs)
 	if err != nil {
 		return "", err
 	}
 
-	fmt.Printf("XREF table offset: %d", xref)
+	decoder := xref.NewDecoder(rs, xrefOffset)
+
+	xrefTable := &xref.CrossReferenceTable{}
+	if err := decoder.Decode(xrefTable); err != nil {
+		return "", fmt.Errorf("decoding xref table: %s", err)
+	}
+
+	var buf []byte = make([]byte, 256)
+	var xpacketObjectReference *xref.ObjectReference
+	for _, ref := range xrefTable.References {
+		rs.Seek(int64(ref.Offset), 0)
+		rs.Read(buf)
+
+		if strings.Contains(string(buf), "<?xpacket begin") {
+			xpacketObjectReference = &ref
+			break
+		}
+	}
+
+	if xpacketObjectReference == nil {
+		return "", errors.New("no xpacket found")
+	}
+
+	rs.Seek(xpacketObjectReference.Offset, 0)
+
 
 	return "", nil
 }
