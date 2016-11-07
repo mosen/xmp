@@ -10,9 +10,10 @@ var (
 )
 
 type ObjectReference struct {
-	Offset     int
+	Offset     int64 // int64 more convenient for io.ReadSeeker
 	Generation int
 	InUse      CrossReferenceObjectFreeStatus
+	Id	   int
 }
 
 type CrossReferenceTable struct {
@@ -21,6 +22,16 @@ type CrossReferenceTable struct {
 	ObjectCount int
 
 	References []ObjectReference
+}
+
+func (cr *CrossReferenceTable) FindObjectId(objectId int) *ObjectReference {
+	for _, ref := range cr.References {
+		if ref.Id == objectId {
+			return &ref
+		}
+	}
+
+	return nil
 }
 
 func (cr *CrossReferenceTable) String() string {

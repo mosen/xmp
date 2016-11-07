@@ -47,10 +47,10 @@ func (dec *Decoder) Decode(v *CrossReferenceTable) error {
 	v.ObjectCount = objectCount
 	v.References = make([]ObjectReference, v.ObjectCount)
 
-	for i := 0; i < v.ObjectCount; i++ {
+	for i := objectStart; i < v.ObjectCount; i++ {
 		scanner.Scan()
 		reference := strings.Split(scanner.Text(), " ")
-		objectOffset, err := strconv.Atoi(reference[0])
+		objectOffset, err := strconv.ParseInt(reference[0], 10, 0)
 		if err != nil {
 			return fmt.Errorf("converting object reference offset to int: %s", err)
 		}
@@ -60,9 +60,10 @@ func (dec *Decoder) Decode(v *CrossReferenceTable) error {
 			return fmt.Errorf("converting object reference generation to int: %s", err)
 		}
 
-		v.References[i] = ObjectReference{
+		v.References[i - objectStart] = ObjectReference{
 			Offset: objectOffset,
 			Generation: objectGeneration,
+			Id: i,
 		}
 	}
 

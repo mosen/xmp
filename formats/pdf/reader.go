@@ -18,11 +18,11 @@ func getCrossReferenceTableOffset(r io.Reader) (int64, error) {
 	for scanner.Scan() {
 		if xri := strings.Index(scanner.Text(), "startxref"); xri != -1 {
 			scanner.Scan()
-			xrefOffsetValue, err := strconv.Atoi(scanner.Text())
+			xrefOffsetValue, err := strconv.ParseInt(scanner.Text(), 10, 0)
 			if err != nil {
 				return 0, fmt.Errorf("converting xref offset to integer: %s", err)
 			}
-			return int64(xrefOffsetValue), nil
+			return xrefOffsetValue, nil
 		}
 	}
 
@@ -48,10 +48,10 @@ func DumpXMPString(r io.Reader) (string, error) {
 		return "", fmt.Errorf("decoding xref table: %s", err)
 	}
 
-	var buf []byte = make([]byte, 256)
+	var buf []byte = make([]byte, 128)
 	var xpacketObjectReference *xref.ObjectReference
 	for _, ref := range xrefTable.References {
-		rs.Seek(int64(ref.Offset), 0)
+		rs.Seek(ref.Offset, 0)
 		rs.Read(buf)
 
 		if strings.Contains(string(buf), "<?xpacket begin") {
@@ -65,7 +65,17 @@ func DumpXMPString(r io.Reader) (string, error) {
 	}
 
 	rs.Seek(xpacketObjectReference.Offset, 0)
+	var nextObjectReference *xref.ObjectReference = xrefTable.FindObjectId(xpacketObjectReference.Id + 1)
+	if nextObjectReference == nil {
+		return "", errors.New("unhandled case")
+	}
 
+	var xpacketLength int64 = nextObjectReference.Offset - xpacketObjectReference.Offset
+
+	var xbuf []byte = make([]byte, xpacketLength)
+	rs.Read(xbuf)
+
+	fmt.Println(string(xbuf))
 
 	return "", nil
 }
